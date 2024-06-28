@@ -1,17 +1,18 @@
 const { Model, DataTypes } = require("sequelize");
 const sequelize = require("../utilities/connection");
 
-class ProductsCategories extends Model {}
+class ShippingMethods extends Model {}
 
-ProductsCategories.init(
+ShippingMethods.init(
   {
     name: DataTypes.STRING,
+    price: DataTypes.FLOAT,
     active: { type: DataTypes.INTEGER(1), defaultValue: 1 },
   },
   {
     sequelize,
-    tableName: "products_categories",
+    tableName: "shipping_methods",
   }
 );
 
-module.exports = ProductsCategories;
+module.exports = ShippingMethods;

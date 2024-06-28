@@ -8,7 +8,8 @@ class OrdersProducts extends Model {}
 
 OrdersProducts.init(
   {
-    quantity: DataTypes.NUMBER,
+    quantity: DataTypes.INTEGER,
+    price: DataTypes.FLOAT,
   },
   {
     sequelize,
