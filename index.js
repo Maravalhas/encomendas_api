@@ -13,16 +13,22 @@ app.use(express.json());
 connection
   .authenticate()
   .then(() => {
+    console.log(`Connected to database - ${process.env.DB_NAME}`);
+
+    app.use("/auth", require("./routes/auth"));
+    app.use("/orders", require("./routes/orders"));
+    app.use("/products", require("./routes/products"));
+
     if (process.env.SYNC) {
-      connection.sync({ force: true });
-      process.exit();
+      connection
+        .sync({ force: true })
+        .catch((err) => {
+          console.error(err);
+        })
+        .finally(() => {
+          process.exit();
+        });
     } else {
-      console.log(`Connected to database - ${process.env.DB_NAME}`);
-
-      app.use("/auth", require("./routes/auth"));
-      app.use("/orders", require("./routes/orders"));
-      app.use("/products", require("./routes/products"));
-
       app.listen(process.env.PORT, () => {
         console.log(`App listening @${process.env.PORT}`);
       });

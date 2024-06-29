@@ -13,7 +13,7 @@ OrdersProducts.init(
   },
   {
     sequelize,
-    tableName: "orders",
+    tableName: "orders_products",
   }
 );
 

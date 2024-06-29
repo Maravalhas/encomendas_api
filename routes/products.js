@@ -36,8 +36,32 @@ router
     controller.createProduct
   );
 
+router.route("/categories").get(
+  validateToken,
+  query("limit").optional({ values: "null" }).isInt({ min: 0 }).toInt(),
+  query("offset").optional({ values: "null" }).isInt({ min: 0 }).toInt(),
+  query("order").optional({ values: "null" }).isArray().isLength(2),
+  query("active").optional({ values: "null" }).isArray(),
+  query("active.*")
+    .if(query("active").exists())
+    .isInt({ min: 0, max: 1 })
+    .toInt(),
+  query("search")
+    .optional({ values: "null" })
+    .isString()
+    .customSanitizer((value) => `%${value.replaceAll(" ", "%")}%`),
+  expressValidatorMiddleware,
+  controller.getAllProductsCategories
+);
+
 router
   .route("/:id")
+  .get(
+    validateToken,
+    param("id").isInt({ min: 1 }),
+    expressValidatorMiddleware,
+    controller.getProductById
+  )
   .put(
     validateToken,
     param("id").isInt({ min: 1 }),

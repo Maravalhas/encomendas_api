@@ -1,5 +1,6 @@
 const Orders = require("../models/orders");
 const OrdersProducts = require("../models/orders_products");
+const OrdersStates = require("../models/orders_states");
 const Products = require("../models/products");
 const ShippingMethods = require("../models/shipping_methods");
 
@@ -7,23 +8,40 @@ const { Sequelize, Op } = require("sequelize");
 
 exports.getAllOrders = async (req, res) => {
   try {
-    const offset = req.query.offset || 0;
-    const limit = req.query.limit || 0;
-    const order = req.query.order || ["createdAt", "DESC"];
-
-    const search = req.query.search;
-    const state = req.query.state;
+    const { offset, limit, order, search, state } = req.query;
 
     const { rows, count } = await Orders.findAndCountAll({
+      attributes: [
+        "id",
+        "name",
+        "address",
+        "date_shipped",
+        "date_received",
+        "created_at",
+        "id_shipping_method",
+        [Sequelize.col("ShippingMethod.name"), "shipping_method"],
+        "id_state",
+        [Sequelize.col("OrdersState.name"), "state"],
+      ],
       where: {
         [Op.and]: [
           state ? { id_state: state } : {},
           search ? { name: { [Op.like]: search } } : {},
         ],
       },
+      include: [
+        {
+          model: ShippingMethods,
+          attributes: [],
+        },
+        {
+          model: OrdersStates,
+          attributes: [],
+        },
+      ],
       offset,
       limit,
-      order: [[Sequelize.col(order[0]), order[1]]],
+      order: order ? [order] : [["id", "ASC"]],
     });
 
     return res.status(200).json({ data: rows, total: count });

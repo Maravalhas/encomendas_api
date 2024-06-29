@@ -6,16 +6,17 @@ const { Op, Sequelize } = require("sequelize");
 
 exports.getAllProducts = async (req, res) => {
   try {
-    const { offset, limit, search, active } = req.query;
+    const { offset, limit, order, search, active } = req.query;
 
     const { count, rows } = await Products.findAndCountAll({
       attributes: [
         "id",
         "name",
         "price",
-        "image",
+        "stock",
+        "created_at",
         "id_category",
-        [Sequelize.col("ProductsCategories.name"), "category"],
+        [Sequelize.col("ProductsCategory.name"), "category"],
       ],
       where: {
         active: active || 1,
@@ -29,6 +30,7 @@ exports.getAllProducts = async (req, res) => {
       ],
       offset,
       limit,
+      order: order ? [order] : [["id", "ASC"]],
       raw: true,
     });
 
@@ -38,9 +40,35 @@ exports.getAllProducts = async (req, res) => {
   }
 };
 
+exports.getProductById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const product = await Products.findByPk(id, {
+      attributes: [
+        "id",
+        "name",
+        "description",
+        "price",
+        "stock",
+        "id_category",
+      ],
+      raw: true,
+    });
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    return res.status(200).json(product);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
 exports.createProduct = async (req, res) => {
   try {
-    const { name, stock, price, id_category } = req.body;
+    const { name, description, stock, price, id_category } = req.body;
 
     const category = await ProductsCategories.findByPk(id_category, {
       where: { attributes: ["id"], active: 1, raw: true },
@@ -52,6 +80,7 @@ exports.createProduct = async (req, res) => {
 
     Products.create({
       name,
+      description,
       price,
       stock,
       id_category,
@@ -72,7 +101,7 @@ exports.createProduct = async (req, res) => {
 exports.updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, stock, price, id_category } = req.body;
+    const { name, description, stock, price, id_category } = req.body;
 
     const product = await Products.findByPk(id, {
       attributes: ["id"],
@@ -94,6 +123,7 @@ exports.updateProduct = async (req, res) => {
     Products.update(
       {
         name,
+        description,
         price,
         stock,
         id_category,
@@ -108,6 +138,28 @@ exports.updateProduct = async (req, res) => {
       .catch((err) => {
         return res.status(500).json({ message: err.message });
       });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+exports.getAllProductsCategories = async (req, res) => {
+  try {
+    const { offset, limit, order, search, active } = req.query;
+
+    const { rows, count } = await ProductsCategories.findAndCountAll({
+      attributes: ["id", "name", "active"],
+      where: {
+        active: active || 1,
+        ...(search ? { name: { [Op.like]: search } } : {}),
+      },
+      offset,
+      limit,
+      order: order ? [order] : [["id", "ASC"]],
+      raw: true,
+    });
+
+    return res.status(200).json({ data: rows, total: count });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
