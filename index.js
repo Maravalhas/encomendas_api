@@ -17,8 +17,6 @@ connection.authenticate().then(() => {
   app.use("/orders", require("./routes/orders"));
   app.use("/products", require("./routes/products"));
 
-  connection.sync({ force: true });
-
   app.listen(process.env.PORT, () => {
     console.log(`App listening @${process.env.PORT}`);
   });

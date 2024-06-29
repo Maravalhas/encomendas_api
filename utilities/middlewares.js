@@ -27,7 +27,7 @@ exports.validateToken = async (req, res, next) => {
       return res.status(401).json({ message: "Invalid token!" });
     }
 
-    req.userId = data.id;
+    req.user = data.id;
 
     next();
   } catch (err) {

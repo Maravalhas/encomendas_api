@@ -34,3 +34,19 @@ exports.signin = async (req, res) => {
     return res.status(500).json({ message: err.message });
   }
 };
+
+exports.getUserByToken = async (req, res) => {
+  try {
+    const user = await Users.findByPk(req.user, {
+      attributes: ["id", "name"],
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.status(200).json(user);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
