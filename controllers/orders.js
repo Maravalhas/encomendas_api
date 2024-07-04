@@ -5,6 +5,7 @@ const Products = require("../models/products");
 const ShippingMethods = require("../models/shipping_methods");
 
 const { Sequelize, Op } = require("sequelize");
+const moment = require("moment");
 
 exports.getAllOrders = async (req, res) => {
   try {
@@ -15,6 +16,8 @@ exports.getAllOrders = async (req, res) => {
         "id",
         "name",
         "address",
+        "zipcode",
+        "locality",
         "date_shipped",
         "date_received",
         "created_at",
@@ -57,6 +60,8 @@ exports.getOrderById = async (req, res) => {
         "id",
         "name",
         "address",
+        "zipcode",
+        "locality",
         "date_shipped",
         "date_received",
         "created_at",
@@ -66,11 +71,7 @@ exports.getOrderById = async (req, res) => {
       include: [
         {
           model: OrdersProducts,
-          attributes: [
-            "quantity",
-            "price",
-            [Sequelize.literal("`OrdersProducts->Product`.name"), "product"],
-          ],
+          attributes: ["quantity", "price", "id_product"],
           include: [
             {
               model: Products,
@@ -97,7 +98,8 @@ exports.getOrderById = async (req, res) => {
 
 exports.createOrder = async (req, res) => {
   try {
-    const { name, address, id_shipping_method, products } = req.body;
+    const { name, address, zipcode, locality, id_shipping_method, products } =
+      req.body;
 
     const shippingMethod = await ShippingMethods.findByPk(id_shipping_method, {
       attributes: ["id"],
@@ -110,7 +112,8 @@ exports.createOrder = async (req, res) => {
     }
 
     const allProducts = await Products.findAll({
-      where: { id: products.map((product) => product.productId) },
+      where: { id: products.map((product) => product.id_product) },
+      raw: true,
     });
 
     if (allProducts.length !== products.length) {
@@ -120,6 +123,8 @@ exports.createOrder = async (req, res) => {
     Orders.create({
       name,
       address,
+      zipcode,
+      locality,
       id_shipping_method,
       created_by: req.user,
       created_at: moment().format("YYYY-MM-DD HH:mm:ss"),
@@ -128,7 +133,7 @@ exports.createOrder = async (req, res) => {
         OrdersProducts.bulkCreate(
           products.map((product) => {
             const currentProduct = allProducts.find(
-              (product) => product.id === product.product
+              (product2) => product2.id === product.id_product
             );
             return {
               id_order: created.id,
