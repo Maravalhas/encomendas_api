@@ -6,10 +6,18 @@ const Products = require("./products");
 
 class OrdersProducts extends Model {}
 
+/*
+  discount_type === 1 : percentage
+  discount_type === 2 : value
+  discount_type === 3 : value / quantity
+*/
+
 OrdersProducts.init(
   {
     quantity: DataTypes.INTEGER,
     price: DataTypes.FLOAT,
+    discount: DataTypes.FLOAT,
+    discount_type: DataTypes.INTEGER,
   },
   {
     sequelize,
