@@ -1,9 +1,13 @@
 const router = require("express").Router();
 const { query } = require("express-validator");
 const controller = require("../controllers/shipping_methods");
-const { expressValidatorMiddleware } = require("../utilities/middlewares");
+const {
+  expressValidatorMiddleware,
+  validateToken,
+} = require("../utilities/middlewares");
 
 router.route("/").get(
+  validateToken,
   query("limit")
     .optional()
     .isInt({ min: 0 })
