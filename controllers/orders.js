@@ -25,6 +25,7 @@ exports.getAllOrders = async (req, res) => {
         [Sequelize.col("ShippingMethod.name"), "shipping_method"],
         "id_state",
         [Sequelize.col("OrdersState.name"), "state"],
+        [Sequelize.col("OrdersState.key"), "state_key"],
       ],
       where: {
         [Op.and]: [
@@ -120,12 +121,21 @@ exports.createOrder = async (req, res) => {
       return res.status(403).json({ message: "Invalid products" });
     }
 
+    const pendingState = await OrdersStates.findOne({
+      attributes: ["id"],
+      where: {
+        key: "P",
+      },
+      raw: true,
+    });
+
     Orders.create({
       name,
       address,
       zipcode,
       locality,
       id_shipping_method,
+      id_state: pendingState.id,
       created_by: req.user,
       created_at: moment().format("YYYY-MM-DD HH:mm:ss"),
     })
@@ -147,6 +157,56 @@ exports.createOrder = async (req, res) => {
             .status(201)
             .json({ id: created.id, message: "Order created successfully" });
         });
+      })
+      .catch((err) => {
+        return res.status(500).json({ message: err.message });
+      });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+exports.patchOrderState = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const order = await Orders.findByPk(id, {
+      attributes: ["id", "id_state"],
+      raw: true,
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: "Encomenda não encontrada" });
+    }
+
+    const currentState = await OrdersStates.findByPk(order.id_state, {
+      attributes: ["order"],
+      raw: true,
+    });
+
+    const newState = await OrdersStates.findOne({
+      attributes: ["id", "shipped", "received"],
+      where: {
+        order: currentState.order + 1,
+      },
+      raw: true,
+    });
+
+    let body = {
+      id_state: newState.id,
+    };
+
+    if (newState.shipped) {
+      body.date_shipped = moment().format("YYYY-MM-DD HH:mm:ss");
+    }
+
+    if (newState.received) {
+      body.date_received = moment().format("YYYY-MM-DD HH:mm:ss");
+    }
+
+    Orders.update(body, { where: { id } })
+      .then(() => {
+        return res.status(200).json({ message: "Order state updated" });
       })
       .catch((err) => {
         return res.status(500).json({ message: err.message });

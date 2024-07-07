@@ -47,6 +47,11 @@ router
     param("id").isInt({ min: 1 }),
     expressValidatorMiddleware,
     controller.getOrderById
+  )
+  .patch(
+    param("id").isInt({ min: 1 }),
+    expressValidatorMiddleware,
+    controller.patchOrderState
   );
 
 module.exports = router;
