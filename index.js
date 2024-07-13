@@ -18,6 +18,7 @@ connection
     app.use("/auth", require("./routes/auth"));
     app.use("/orders/states", require("./routes/orders_states"));
     app.use("/orders", require("./routes/orders"));
+    app.use("/products/categories", require("./routes/products_categories"));
     app.use("/products", require("./routes/products"));
     app.use("/shipping_methods", require("./routes/shipping_methods"));
 

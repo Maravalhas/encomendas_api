@@ -6,6 +6,34 @@ const ShippingMethods = require("../models/shipping_methods");
 
 const { Sequelize, Op } = require("sequelize");
 const moment = require("moment");
+const async = require("async");
+
+function updateProductsStock(products, revert, callback) {
+  const stack = products.map((product) => {
+    return (callback) => {
+      Products.findByPk(product.id_product, { attributes: ["stock"] }).then(
+        (current) => {
+          Products.update(
+            {
+              stock: revert
+                ? current.stock + product.quantity
+                : current.stock - product.quantity,
+            },
+            {
+              where: { id: product.id_product },
+            }
+          ).finally(() => {
+            return callback();
+          });
+        }
+      );
+    };
+  });
+
+  async.parallel(stack, () => {
+    return callback();
+  });
+}
 
 exports.getAllOrders = async (req, res) => {
   try {
@@ -135,6 +163,7 @@ exports.createOrder = async (req, res) => {
     }
 
     const allProducts = await Products.findAll({
+      attributes: ["id", "stock"],
       where: { id: products.map((product) => product.id_product) },
       raw: true,
     });
@@ -145,6 +174,19 @@ exports.createOrder = async (req, res) => {
         .json({ message: "Foram recebidos produtos invalidos" });
     }
 
+    if (
+      products.some((product) => {
+        const currentProduct = allProducts.find(
+          (product2) => product2.id === product.id_product
+        );
+        return product.quantity > currentProduct.stock;
+      })
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Quantidade de produtos em stock insuficiente" });
+    }
+
     const pendingState = await OrdersStates.findOne({
       attributes: ["id"],
       where: {
@@ -153,41 +195,52 @@ exports.createOrder = async (req, res) => {
       raw: true,
     });
 
-    Orders.create({
-      name,
-      address,
-      zipcode,
-      locality,
-      id_shipping_method,
-      shipping_price: shippingMethod.price,
-      id_state: pendingState.id,
-      created_by: req.user,
-      created_at: moment().format("YYYY-MM-DD HH:mm:ss"),
-    })
-      .then((created) => {
-        OrdersProducts.bulkCreate(
-          products.map((product) => {
-            const currentProduct = allProducts.find(
-              (product2) => product2.id === product.id_product
-            );
-            return {
-              id_order: created.id,
-              id_product: product.id_product,
-              quantity: product.quantity,
-              price: currentProduct.price,
-              discount: product.discount,
-              discount_type: product.discount_type,
-            };
-          })
-        ).then(() => {
-          return res
-            .status(201)
-            .json({ id: created.id, message: "Encomenda criada com sucesso" });
-        });
+    if (!pendingState) {
+      return res
+        .status(404)
+        .json({ message: "Estado pendente não encontrado" });
+    }
+
+    updateProductsStock(products, false, () => {
+      Orders.create({
+        name,
+        address,
+        zipcode,
+        locality,
+        id_shipping_method,
+        shipping_price: shippingMethod.price,
+        id_state: pendingState.id,
+        created_by: req.user,
+        created_at: moment().format("YYYY-MM-DD HH:mm:ss"),
       })
-      .catch((err) => {
-        return res.status(500).json({ message: err.message });
-      });
+        .then((created) => {
+          OrdersProducts.bulkCreate(
+            products.map((product) => {
+              const currentProduct = allProducts.find(
+                (product2) => product2.id === product.id_product
+              );
+              return {
+                id_order: created.id,
+                id_product: product.id_product,
+                quantity: product.quantity,
+                price: currentProduct.price,
+                discount: product.discount,
+                discount_type: product.discount_type,
+              };
+            })
+          ).then(() => {
+            return res.status(201).json({
+              id: created.id,
+              message: "Encomenda criada com sucesso",
+            });
+          });
+        })
+        .catch((err) => {
+          updateProductsStock(products, true, () => {
+            return res.status(500).json({ message: err.message });
+          });
+        });
+    });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
@@ -335,6 +388,68 @@ exports.patchOrderState = async (req, res) => {
       .catch((err) => {
         return res.status(500).json({ message: err.message });
       });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+exports.deleteOrder = async (req, res) => {
+  try {
+    const order = await Orders.findByPk(req.params.id, {
+      attributes: ["id", "id_state"],
+      raw: true,
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: "Encomenda não encontrada" });
+    }
+
+    if (order.id_state >= 4) {
+      return res
+        .status(403)
+        .json({ message: "A encomenda já não pode ser eliminada" });
+    }
+
+    OrdersProducts.findAll({
+      attributes: [
+        "id_product",
+        "quantity",
+        [Sequelize.col("Product.stock"), "stock"],
+      ],
+      where: { id_order: req.params.id },
+      include: [
+        {
+          model: Products,
+          attributes: [],
+        },
+      ],
+      raw: true,
+    }).then((products) => {
+      const stack = products.map((product) => {
+        return (callback) => {
+          Products.update(
+            {
+              stock: product.stock + product.quantity,
+            },
+            {
+              where: { id: product.id_product },
+            }
+          ).finally(() => {
+            return callback();
+          });
+        };
+      });
+
+      async.parallel(stack, () => {
+        OrdersProducts.destroy({ where: { id_order: req.params.id } }).finally(
+          () => {
+            Orders.destroy({ where: { id: req.params.id } }).finally(() => {
+              return res.status(200).json({ message: "Encomenda eliminada" });
+            });
+          }
+        );
+      });
+    });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }

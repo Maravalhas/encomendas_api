@@ -77,6 +77,12 @@ router
     body("products.*.quantity").if(body("products").exists()).isInt({ min: 1 }),
     expressValidatorMiddleware,
     controller.updateOrder
+  )
+  .delete(
+    validateToken,
+    param("id").isInt({ min: 1 }),
+    expressValidatorMiddleware,
+    controller.deleteOrder
   );
 
 module.exports = router;
