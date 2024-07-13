@@ -13,6 +13,7 @@ Orders.init(
     zipcode: DataTypes.STRING,
     locality: DataTypes.STRING,
     created_at: DataTypes.DATE,
+    shipping_price: DataTypes.FLOAT,
     date_shipped: DataTypes.DATE,
     date_received: DataTypes.DATE,
   },

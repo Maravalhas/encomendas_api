@@ -76,7 +76,10 @@ exports.getOrderById = async (req, res) => {
         "date_received",
         "created_at",
         "id_shipping_method",
+        "shipping_price",
         [Sequelize.col("ShippingMethod.name"), "shipping_method"],
+        [Sequelize.col("OrdersState.key"), "state_key"],
+        [Sequelize.col("OrdersState.order"), "state_order"],
       ],
       include: [
         {
@@ -99,6 +102,10 @@ exports.getOrderById = async (req, res) => {
           model: ShippingMethods,
           attributes: [],
         },
+        {
+          model: OrdersStates,
+          attributes: [],
+        },
       ],
     });
 
@@ -118,13 +125,13 @@ exports.createOrder = async (req, res) => {
       req.body;
 
     const shippingMethod = await ShippingMethods.findByPk(id_shipping_method, {
-      attributes: ["id"],
+      attributes: ["id", "price"],
       where: { active: 1 },
       raw: true,
     });
 
     if (!shippingMethod) {
-      return res.status(400).json({ message: "Invalid shipping method" });
+      return res.status(400).json({ message: "Metodo de envio invalido" });
     }
 
     const allProducts = await Products.findAll({
@@ -133,7 +140,9 @@ exports.createOrder = async (req, res) => {
     });
 
     if (allProducts.length !== products.length) {
-      return res.status(403).json({ message: "Invalid products" });
+      return res
+        .status(403)
+        .json({ message: "Foram recebidos produtos invalidos" });
     }
 
     const pendingState = await OrdersStates.findOne({
@@ -150,6 +159,7 @@ exports.createOrder = async (req, res) => {
       zipcode,
       locality,
       id_shipping_method,
+      shipping_price: shippingMethod.price,
       id_state: pendingState.id,
       created_by: req.user,
       created_at: moment().format("YYYY-MM-DD HH:mm:ss"),
@@ -189,12 +199,24 @@ exports.updateOrder = async (req, res) => {
       req.body;
 
     const order = await Orders.findByPk(req.params.id, {
-      attributes: ["id"],
+      attributes: ["id", [Sequelize.col("OrdersState.order"), "state_order"]],
+      include: [
+        {
+          model: OrdersStates,
+          attributes: [],
+        },
+      ],
       raw: true,
     });
 
     if (!order) {
-      return res.status(404).json({ message: "Order not found" });
+      return res.status(404).json({ message: "Encomenda não encontrada" });
+    }
+
+    if (order.state_order > 4) {
+      return res
+        .status(403)
+        .json({ message: "A encomenda já não pode ser atualizada" });
     }
 
     const shippingMethod = await ShippingMethods.findByPk(id_shipping_method, {
@@ -204,7 +226,7 @@ exports.updateOrder = async (req, res) => {
     });
 
     if (!shippingMethod) {
-      return res.status(400).json({ message: "Invalid shipping method" });
+      return res.status(400).json({ message: "Metodo de envio inválido" });
     }
 
     const allProducts = await Products.findAll({
@@ -213,7 +235,9 @@ exports.updateOrder = async (req, res) => {
     });
 
     if (allProducts.length !== products.length) {
-      return res.status(403).json({ message: "Invalid products" });
+      return res
+        .status(403)
+        .json({ message: "Foram recebidos produtos invalidos" });
     }
 
     Orders.update(
@@ -223,6 +247,7 @@ exports.updateOrder = async (req, res) => {
         zipcode,
         locality,
         id_shipping_method,
+        shipping_price: shippingMethod.price,
         updated_by: req.user,
         updated_at: moment().format("YYYY-MM-DD HH:mm:ss"),
       },
@@ -303,7 +328,9 @@ exports.patchOrderState = async (req, res) => {
 
     Orders.update(body, { where: { id } })
       .then(() => {
-        return res.status(200).json({ message: "Order state updated" });
+        return res
+          .status(200)
+          .json({ message: "Estado da encomenda atualizado" });
       })
       .catch((err) => {
         return res.status(500).json({ message: err.message });
