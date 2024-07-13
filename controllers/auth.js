@@ -1,6 +1,6 @@
 const Users = require("../models/users");
 
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const { create } = require("../utilities/tokens");
 
 exports.signin = async (req, res) => {
