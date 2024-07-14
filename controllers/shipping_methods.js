@@ -4,11 +4,11 @@ const { Op } = require("sequelize");
 
 exports.getAllShippingMethods = async (req, res) => {
   try {
-    const { limit, offset, order, search } = req.query;
+    const { limit, offset, order, search, active } = req.query;
 
     const { rows, count } = await ShippingMethods.findAndCountAll({
       where: {
-        active: 1,
+        active: active || 1,
         ...(search && { name: { [Op.like]: search } }),
       },
       offset,

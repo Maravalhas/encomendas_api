@@ -38,12 +38,6 @@ router
 
 router
   .route("/:id")
-  .get(
-    validateToken,
-    param("id").isInt({ min: 1 }),
-    expressValidatorMiddleware,
-    controller.getProductById
-  )
   .put(
     validateToken,
     param("id").isInt({ min: 1 }),
@@ -54,6 +48,12 @@ router
     body("id_category").isInt({ min: 1 }),
     expressValidatorMiddleware,
     controller.updateProduct
+  )
+  .delete(
+    validateToken,
+    param("id").isInt({ min: 1 }),
+    expressValidatorMiddleware,
+    controller.deleteProduct
   );
 
 module.exports = router;

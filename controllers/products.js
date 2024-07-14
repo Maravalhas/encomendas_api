@@ -41,32 +41,6 @@ exports.getAllProducts = async (req, res) => {
   }
 };
 
-exports.getProductById = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const product = await Products.findByPk(id, {
-      attributes: [
-        "id",
-        "name",
-        "description",
-        "price",
-        "stock",
-        "id_category",
-      ],
-      raw: true,
-    });
-
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
-    return res.status(200).json(product);
-  } catch (err) {
-    return res.status(500).json({ message: err.message });
-  }
-};
-
 exports.createProduct = async (req, res) => {
   try {
     const { name, description, stock, price, id_category } = req.body;
@@ -133,6 +107,31 @@ exports.updateProduct = async (req, res) => {
     )
       .then((product) => {
         return res.status(200).json({ data: product });
+      })
+      .catch((err) => {
+        return res.status(500).json({ message: err.message });
+      });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+exports.deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const product = await Products.findByPk(id, {
+      attributes: ["id"],
+      raw: true,
+    });
+
+    if (!product) {
+      return res.status(404).json({ message: "Produto não encontrado" });
+    }
+
+    Products.update({ active: 0 }, { where: { id } })
+      .then(() => {
+        return res.status(200).json({ message: "Produto eliminado" });
       })
       .catch((err) => {
         return res.status(500).json({ message: err.message });
