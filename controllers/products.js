@@ -12,9 +12,10 @@ exports.getAllProducts = async (req, res) => {
       attributes: [
         "id",
         "name",
+        "description",
         "price",
         "stock",
-        "created_at",
+        "createdAt",
         "id_category",
         [Sequelize.col("ProductsCategory.name"), "category"],
       ],
@@ -30,7 +31,7 @@ exports.getAllProducts = async (req, res) => {
       ],
       offset,
       limit,
-      order: order ? [order] : [["id", "ASC"]],
+      order: order ? [[Sequelize.col(order[0]), order[1]]] : [["id", "ASC"]],
       raw: true,
     });
 
@@ -84,7 +85,6 @@ exports.createProduct = async (req, res) => {
       price,
       stock,
       id_category,
-      created_at: moment().format("YYYY-MM-DD HH:mm:ss"),
       created_by: req.user,
     })
       .then((product) => {
@@ -127,7 +127,6 @@ exports.updateProduct = async (req, res) => {
         price,
         stock,
         id_category,
-        updated_at: moment().format("YYYY-MM-DD HH:mm:ss"),
         updated_by: req.user,
       },
       { where: { id } }

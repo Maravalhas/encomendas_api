@@ -48,7 +48,7 @@ exports.getAllOrders = async (req, res) => {
         "locality",
         "date_shipped",
         "date_received",
-        "created_at",
+        "createdAt",
         "id_shipping_method",
         [Sequelize.col("ShippingMethod.name"), "shipping_method"],
         "id_state",
@@ -59,7 +59,7 @@ exports.getAllOrders = async (req, res) => {
         [Op.and]: [
           state ? { id_state: state } : {},
           search ? { name: { [Op.like]: search } } : {},
-          date ? { created_at: { [Op.gte]: date } } : {},
+          date ? { createdAt: { [Op.gte]: date } } : {},
         ],
       },
       include: [
@@ -102,7 +102,7 @@ exports.getOrderById = async (req, res) => {
         "locality",
         "date_shipped",
         "date_received",
-        "created_at",
+        "createdAt",
         "id_shipping_method",
         "shipping_price",
         [Sequelize.col("ShippingMethod.name"), "shipping_method"],
@@ -211,7 +211,6 @@ exports.createOrder = async (req, res) => {
         shipping_price: shippingMethod.price,
         id_state: pendingState.id,
         created_by: req.user,
-        created_at: moment().format("YYYY-MM-DD HH:mm:ss"),
       })
         .then((created) => {
           OrdersProducts.bulkCreate(
@@ -302,7 +301,6 @@ exports.updateOrder = async (req, res) => {
         id_shipping_method,
         shipping_price: shippingMethod.price,
         updated_by: req.user,
-        updated_at: moment().format("YYYY-MM-DD HH:mm:ss"),
       },
       {
         where: { id: req.params.id },

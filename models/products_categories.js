@@ -6,6 +6,7 @@ class ProductsCategories extends Model {}
 ProductsCategories.init(
   {
     name: DataTypes.STRING,
+    description: DataTypes.TEXT,
     active: { type: DataTypes.INTEGER(1), defaultValue: 1 },
   },
   {

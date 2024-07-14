@@ -13,8 +13,6 @@ Products.init(
     stock: DataTypes.INTEGER,
     price: DataTypes.FLOAT,
     active: { type: DataTypes.INTEGER(1), defaultValue: 1 },
-    created_at: DataTypes.DATE,
-    updated_at: DataTypes.DATE,
   },
   {
     sequelize,
