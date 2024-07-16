@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "test": "nodemon index.js",
-    "sync-db": "SYNC=true node index.js"
+    "sync-db": "SYNC=true node index.js",
+    "build-docker": "docker build . -t maravalhas/pulseiras-api"
   },
   "repository": {
     "type": "git",
