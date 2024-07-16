@@ -35,9 +35,10 @@ router
   .post(
     validateToken,
     body("name").isString().notEmpty(),
-    body("address").isString().notEmpty(),
-    body("zipcode").isString().notEmpty(),
-    body("locality").isString().notEmpty(),
+    body("date").optional({ values: "null" }).isDate(),
+    body("address").optional({ values: "null" }).isString().notEmpty(),
+    body("zipcode").optional({ values: "null" }).isString().notEmpty(),
+    body("locality").optional({ values: "null" }).isString().notEmpty(),
     body("id_shipping_method").isInt({ min: 1 }),
     body("products").isArray().notEmpty(),
     body("products.*.id_product")
@@ -66,9 +67,10 @@ router
     validateToken,
     param("id").isInt({ min: 1 }),
     body("name").isString().notEmpty(),
-    body("address").isString().notEmpty(),
-    body("zipcode").isString().notEmpty(),
-    body("locality").isString().notEmpty(),
+    body("date").optional({ values: "null" }).isDate(),
+    body("address").optional({ values: "null" }).isString().notEmpty(),
+    body("zipcode").optional({ values: "null" }).isString().notEmpty(),
+    body("locality").optional({ values: "null" }).isString().notEmpty(),
     body("id_shipping_method").isInt({ min: 1 }),
     body("products").isArray().notEmpty(),
     body("products.*.id_product")

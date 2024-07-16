@@ -24,7 +24,7 @@ connection
 
     if (process.env.SYNC) {
       connection
-        .sync({ force: true })
+        .sync()
         .catch((err) => {
           console.error(err);
         })

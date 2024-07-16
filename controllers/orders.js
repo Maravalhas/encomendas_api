@@ -75,7 +75,21 @@ exports.getAllOrders = async (req, res) => {
           ? [
               {
                 model: OrdersProducts,
-                attributes: ["quantity", "price"],
+                attributes: [
+                  "id_product",
+                  [Sequelize.col("Product.name"), "name"],
+                  "quantity",
+                  "price",
+                  "discount",
+                  "discount_type",
+                ],
+                include: [
+                  {
+                    model: Products,
+                    attributes: [],
+                  },
+                ],
+                separate: true,
               },
             ]
           : []),
@@ -149,8 +163,15 @@ exports.getOrderById = async (req, res) => {
 
 exports.createOrder = async (req, res) => {
   try {
-    const { name, address, zipcode, locality, id_shipping_method, products } =
-      req.body;
+    const {
+      name,
+      address,
+      zipcode,
+      locality,
+      id_shipping_method,
+      products,
+      date,
+    } = req.body;
 
     const shippingMethod = await ShippingMethods.findByPk(id_shipping_method, {
       attributes: ["id", "price"],
@@ -211,6 +232,7 @@ exports.createOrder = async (req, res) => {
         shipping_price: shippingMethod.price,
         id_state: pendingState.id,
         created_by: req.user,
+        createdAt: date || moment().format("YYYY-MM-DD HH:mm:ss"),
       })
         .then((created) => {
           OrdersProducts.bulkCreate(
@@ -247,8 +269,15 @@ exports.createOrder = async (req, res) => {
 
 exports.updateOrder = async (req, res) => {
   try {
-    const { name, address, zipcode, locality, id_shipping_method, products } =
-      req.body;
+    const {
+      name,
+      address,
+      zipcode,
+      locality,
+      id_shipping_method,
+      products,
+      date,
+    } = req.body;
 
     const order = await Orders.findByPk(req.params.id, {
       attributes: ["id", [Sequelize.col("OrdersState.order"), "state_order"]],
@@ -301,6 +330,7 @@ exports.updateOrder = async (req, res) => {
         id_shipping_method,
         shipping_price: shippingMethod.price,
         updated_by: req.user,
+        ...(date ? { createdAt: date } : {}),
       },
       {
         where: { id: req.params.id },
