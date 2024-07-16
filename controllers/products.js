@@ -1,4 +1,3 @@
-const moment = require("moment");
 const Products = require("../models/products");
 const ProductsCategories = require("../models/products_categories");
 
@@ -53,6 +52,18 @@ exports.createProduct = async (req, res) => {
       return res.status(404).json({ message: "Category not found" });
     }
 
+    const duplicated = await Products.findOne({
+      where: { name, active: 1 },
+      attributes: ["id"],
+      raw: true,
+    });
+
+    if (duplicated) {
+      return res
+        .status(400)
+        .json({ message: "Já existe um produto com este nome" });
+    }
+
     Products.create({
       name,
       description,
@@ -92,6 +103,18 @@ exports.updateProduct = async (req, res) => {
 
     if (!category) {
       return res.status(404).json({ message: "Category not found" });
+    }
+
+    const duplicated = await Products.findOne({
+      where: { name, active: 1, id: { [Op.ne]: id } },
+      attributes: ["id"],
+      raw: true,
+    });
+
+    if (duplicated) {
+      return res
+        .status(400)
+        .json({ message: "Já existe um produto com este nome" });
     }
 
     Products.update(

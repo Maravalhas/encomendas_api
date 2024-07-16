@@ -96,7 +96,7 @@ exports.getAllOrders = async (req, res) => {
       ],
       offset,
       limit,
-      order: order ? [order] : [["id", "ASC"]],
+      order: order ? [order, ["id", "DESC"]] : [["id", "ASC"]],
     });
 
     return res.status(200).json({ data: rows, total: count });
@@ -279,26 +279,31 @@ exports.updateOrder = async (req, res) => {
       date,
     } = req.body;
 
-    const order = await Orders.findByPk(req.params.id, {
+    let order = await Orders.findByPk(req.params.id, {
       attributes: ["id", [Sequelize.col("OrdersState.order"), "state_order"]],
       include: [
         {
           model: OrdersStates,
           attributes: [],
         },
+        {
+          model: OrdersProducts,
+          attributes: ["id_product", "quantity"],
+        },
       ],
-      raw: true,
     });
 
     if (!order) {
       return res.status(404).json({ message: "Encomenda não encontrada" });
     }
 
-    if (order.state_order > 4) {
-      return res
-        .status(403)
-        .json({ message: "A encomenda já não pode ser atualizada" });
-    }
+    order = JSON.parse(JSON.stringify(order));
+
+    // if (order.state_order > 4) {
+    //   return res
+    //     .status(403)
+    //     .json({ message: "A encomenda já não pode ser atualizada" });
+    // }
 
     const shippingMethod = await ShippingMethods.findByPk(id_shipping_method, {
       attributes: ["id"],
@@ -321,49 +326,55 @@ exports.updateOrder = async (req, res) => {
         .json({ message: "Foram recebidos produtos invalidos" });
     }
 
-    Orders.update(
-      {
-        name,
-        address,
-        zipcode,
-        locality,
-        id_shipping_method,
-        shipping_price: shippingMethod.price,
-        updated_by: req.user,
-        ...(date ? { createdAt: date } : {}),
-      },
-      {
-        where: { id: req.params.id },
-      }
-    )
-      .then(() => {
-        OrdersProducts.destroy({ where: { id_order: req.params.id } }).then(
-          () => {
-            OrdersProducts.bulkCreate(
-              products.map((product) => {
-                const currentProduct = allProducts.find(
-                  (product2) => product2.id === product.id_product
-                );
-                return {
-                  id_order: req.params.id,
-                  id_product: product.id_product,
-                  quantity: product.quantity,
-                  price: currentProduct.price,
-                  discount: product.discount,
-                  discount_type: product.discount_type,
-                };
-              })
-            ).then(() => {
-              return res
-                .status(200)
-                .json({ message: "Encomenda atualizada com sucesso" });
-            });
-          }
-        );
-      })
-      .catch((err) => {
-        return res.status(500).json({ message: err.message });
-      });
+    updateProductsStock(order.OrdersProducts, true, () => {
+      Orders.update(
+        {
+          name,
+          address,
+          zipcode,
+          locality,
+          id_shipping_method,
+          shipping_price: shippingMethod.price,
+          updated_by: req.user,
+          ...(date ? { createdAt: date } : {}),
+        },
+        {
+          where: { id: req.params.id },
+        }
+      )
+        .then(() => {
+          OrdersProducts.destroy({ where: { id_order: req.params.id } }).then(
+            () => {
+              OrdersProducts.bulkCreate(
+                products.map((product) => {
+                  const currentProduct = allProducts.find(
+                    (product2) => product2.id === product.id_product
+                  );
+                  return {
+                    id_order: req.params.id,
+                    id_product: product.id_product,
+                    quantity: product.quantity,
+                    price: currentProduct.price,
+                    discount: product.discount,
+                    discount_type: product.discount_type,
+                  };
+                })
+              ).then(() => {
+                updateProductsStock(products, false, () => {
+                  return res
+                    .status(200)
+                    .json({ message: "Encomenda atualizada com sucesso" });
+                });
+              });
+            }
+          );
+        })
+        .catch((err) => {
+          updateProductsStock(order.OrdersProducts, false, () => {
+            return res.status(500).json({ message: err.message });
+          });
+        });
+    });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
