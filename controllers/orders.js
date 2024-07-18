@@ -184,7 +184,7 @@ exports.createOrder = async (req, res) => {
     }
 
     const allProducts = await Products.findAll({
-      attributes: ["id", "stock"],
+      attributes: ["id", "stock", "price"],
       where: { id: products.map((product) => product.id_product) },
       raw: true,
     });
@@ -289,6 +289,7 @@ exports.updateOrder = async (req, res) => {
         {
           model: OrdersProducts,
           attributes: ["id_product", "quantity"],
+          required: false,
         },
       ],
     });
@@ -326,6 +327,24 @@ exports.updateOrder = async (req, res) => {
         .json({ message: "Foram recebidos produtos invalidos" });
     }
 
+    if (
+      products.some((product) => {
+        const currentProduct = allProducts.find(
+          (product2) => product2.id === product.id_product
+        );
+        const currentQuantity = order.OrdersProducts.find(
+          (product2) => product2.id_product === product.id_product
+        );
+        return currentQuantity
+          ? product.quantity > currentProduct.stock + currentQuantity.quantity
+          : product.quantity > currentProduct.stock;
+      })
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Quantidade de produtos em stock insuficiente" });
+    }
+
     updateProductsStock(order.OrdersProducts, true, () => {
       Orders.update(
         {
@@ -343,31 +362,84 @@ exports.updateOrder = async (req, res) => {
         }
       )
         .then(() => {
-          OrdersProducts.destroy({ where: { id_order: req.params.id } }).then(
-            () => {
-              OrdersProducts.bulkCreate(
-                products.map((product) => {
-                  const currentProduct = allProducts.find(
-                    (product2) => product2.id === product.id_product
-                  );
-                  return {
+          const toCreate = products.filter(
+            (product) =>
+              !order.OrdersProducts.some(
+                (product2) => product2.id_product === product.id_product
+              )
+          );
+          const toDelete = order.OrdersProducts.filter(
+            (product) =>
+              !products.some(
+                (product2) => product2.id_product === product.id_product
+              )
+          );
+          const toUpdate = products.filter((product) =>
+            order.OrdersProducts.some(
+              (product2) => product2.id_product === product.id_product
+            )
+          );
+
+          let stack = [];
+
+          stack.push((callback) => {
+            OrdersProducts.bulkCreate(
+              toCreate.map((product) => {
+                const currentProduct = allProducts.find(
+                  (product2) => product2.id === product.id_product
+                );
+                return {
+                  id_order: req.params.id,
+                  id_product: product.id_product,
+                  quantity: product.quantity,
+                  price: currentProduct.price,
+                  discount: product.discount,
+                  discount_type: product.discount_type,
+                };
+              })
+            ).finally(() => {
+              return callback();
+            });
+          });
+
+          stack.push((callback) => {
+            OrdersProducts.destroy({
+              where: {
+                id_order: req.params.id,
+                id_product: toDelete.map((product) => product.id_product),
+              },
+            }).finally(() => {
+              return callback();
+            });
+          });
+
+          toUpdate.forEach((product) => {
+            stack.push((callback) => {
+              OrdersProducts.update(
+                {
+                  quantity: product.quantity,
+                  discount: product.discount,
+                  discount_type: product.discount_type,
+                },
+                {
+                  where: {
                     id_order: req.params.id,
                     id_product: product.id_product,
-                    quantity: product.quantity,
-                    price: currentProduct.price,
-                    discount: product.discount,
-                    discount_type: product.discount_type,
-                  };
-                })
-              ).then(() => {
-                updateProductsStock(products, false, () => {
-                  return res
-                    .status(200)
-                    .json({ message: "Encomenda atualizada com sucesso" });
-                });
+                  },
+                }
+              ).finally(() => {
+                return callback();
               });
-            }
-          );
+            });
+          });
+
+          async.parallel(stack, () => {
+            updateProductsStock(products, false, () => {
+              return res
+                .status(200)
+                .json({ message: "Encomenda atualizada com sucesso" });
+            });
+          });
         })
         .catch((err) => {
           updateProductsStock(order.OrdersProducts, false, () => {
