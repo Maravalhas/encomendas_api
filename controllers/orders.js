@@ -382,56 +382,62 @@ exports.updateOrder = async (req, res) => {
 
           let stack = [];
 
-          stack.push((callback) => {
-            OrdersProducts.bulkCreate(
-              toCreate.map((product) => {
-                const currentProduct = allProducts.find(
-                  (product2) => product2.id === product.id_product
-                );
-                return {
-                  id_order: req.params.id,
-                  id_product: product.id_product,
-                  quantity: product.quantity,
-                  price: currentProduct.price,
-                  discount: product.discount,
-                  discount_type: product.discount_type,
-                };
-              })
-            ).finally(() => {
-              return callback();
-            });
-          });
-
-          stack.push((callback) => {
-            OrdersProducts.destroy({
-              where: {
-                id_order: req.params.id,
-                id_product: toDelete.map((product) => product.id_product),
-              },
-            }).finally(() => {
-              return callback();
-            });
-          });
-
-          toUpdate.forEach((product) => {
+          if (toCreate.length) {
             stack.push((callback) => {
-              OrdersProducts.update(
-                {
-                  quantity: product.quantity,
-                  discount: product.discount,
-                  discount_type: product.discount_type,
-                },
-                {
-                  where: {
+              OrdersProducts.bulkCreate(
+                toCreate.map((product) => {
+                  const currentProduct = allProducts.find(
+                    (product2) => product2.id === product.id_product
+                  );
+                  return {
                     id_order: req.params.id,
                     id_product: product.id_product,
-                  },
-                }
+                    quantity: product.quantity,
+                    price: currentProduct.price,
+                    discount: product.discount,
+                    discount_type: product.discount_type,
+                  };
+                })
               ).finally(() => {
                 return callback();
               });
             });
-          });
+          }
+
+          if (toDelete.length) {
+            stack.push((callback) => {
+              OrdersProducts.destroy({
+                where: {
+                  id_order: req.params.id,
+                  id_product: toDelete.map((product) => product.id_product),
+                },
+              }).finally(() => {
+                return callback();
+              });
+            });
+          }
+
+          if (toUpdate.length) {
+            toUpdate.forEach((product) => {
+              stack.push((callback) => {
+                OrdersProducts.update(
+                  {
+                    quantity: product.quantity,
+                    discount: product.discount,
+                    discount_type: product.discount_type,
+                  },
+                  {
+                    where: {
+                      id_order: req.params.id,
+                      id_product: product.id_product,
+                    },
+                  }
+                ).finally(() => {
+                  return callback();
+                });
+              });
+            });
+          }
 
           async.parallel(stack, () => {
             updateProductsStock(products, false, () => {
