@@ -513,7 +513,13 @@ exports.patchOrderState = async (req, res) => {
 exports.deleteOrder = async (req, res) => {
   try {
     const order = await Orders.findByPk(req.params.id, {
-      attributes: ["id", "id_state"],
+      attributes: ["id", [Sequelize.col("OrdersState.order"), "state_order"]],
+      include: [
+        {
+          model: OrdersStates,
+          attributes: [],
+        },
+      ],
       raw: true,
     });
 
@@ -521,7 +527,7 @@ exports.deleteOrder = async (req, res) => {
       return res.status(404).json({ message: "Encomenda não encontrada" });
     }
 
-    if (order.id_state >= 4) {
+    if (order.state_order >= 4) {
       return res
         .status(403)
         .json({ message: "A encomenda já não pode ser eliminada" });
